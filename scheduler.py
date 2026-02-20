@@ -34,8 +34,25 @@ def restore_jobs(bot: Bot):
     now = datetime.now()
 
     for reminder_id, chat_id, text, run_date, repeat_type, repeat_value in rows:
-        run_dt = datetime.fromisoformat(run_date)
 
+        # 1. Пустая дата
+        if not run_date or run_date.strip() == "":
+            print(f"[!] Пропускаю напоминание {reminder_id}: пустая дата")
+            continue
+
+        # 2. Попытка распарсить дату
+        try:
+            run_dt = datetime.fromisoformat(run_date)
+        except Exception:
+            print(f"[!] Пропускаю напоминание {reminder_id}: неверный формат даты ({run_date})")
+            continue
+
+        # 3. Дополнительная защита — если всё равно None
+        if run_dt is None:
+            print(f"[!] Пропускаю напоминание {reminder_id}: run_dt = None")
+            continue
+
+        # 4. Обработка пропущенных напоминаний
         if run_dt <= now:
             while run_dt <= now:
                 asyncio.create_task(
@@ -45,10 +62,10 @@ def restore_jobs(bot: Bot):
 
             update_reminder_time(reminder_id, run_dt.isoformat())
 
+        # 5. Планирование следующего напоминания
         scheduler.add_job(
             send_reminder,
             trigger="date",
             run_date=run_dt,
             args=[bot, chat_id, text, reminder_id, repeat_type, repeat_value]
         )
-
